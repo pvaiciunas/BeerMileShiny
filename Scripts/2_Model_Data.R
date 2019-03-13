@@ -5,7 +5,8 @@
 data <- data %>% 
   arrange(year, name, numStage, typeStage) %>% 
   group_by(year, name) %>% 
-  mutate(cumTime = cumsum(time)) %>% 
+  mutate(cumTime = cumsum(time),
+         percDone = cumTime / max(cumTime)) %>% 
   ungroup() %>% 
   mutate(numStage = factor(numStage),
          typeStage = factor(typeStage),
@@ -23,16 +24,23 @@ data$stage = factor(data$stage, levels = unique(data$stage))
 
 # https://blog.revolutionanalytics.com/2017/05/tweenr.html
 
-data %>% 
+max_times <- data %>% 
   group_by(year) %>% 
   filter(stage == "Running 4") %>% 
-  top_n(-1, cumTime) %>% 
+  top_n(1, cumTime) %>% 
   select(year, cumTime) %>% 
-  rename(winTime = cumTime) %>% 
-  right_join(data) %>% 
-  mutate()
-  
+  rename(loseTime = cumTime)
 
+time_grid <- data.frame(year = NULL, seconds = NULL)
+for (i in 1:nrow(max_times)) {
+  tempdf <- data.frame(year = max_times$year[i], cumTime = 1:max_times$loseTime[i])
+  time_grid = rbind(time_grid, tempdf)
+}
+
+
+animate_data <- full_join(time_grid, select(data, year, cumTime, name, percDone))
+
+animate_data <- 
 
 animated_data <- data %>% 
   group_by(year) %>% 
