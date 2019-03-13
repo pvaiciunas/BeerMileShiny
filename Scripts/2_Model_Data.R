@@ -16,3 +16,25 @@ data <- data %>%
          cumMinutes = secToMin(cumTime))
 data$stage = factor(data$stage, levels = unique(data$stage))
 
+
+# Need to create a dataframe that can be animated in points
+# Evenly space the 8 stages into 80 points? 
+# Should be winner in 80 stpes or something 
+
+# https://blog.revolutionanalytics.com/2017/05/tweenr.html
+
+data %>% 
+  group_by(year) %>% 
+  filter(stage == "Running 4") %>% 
+  top_n(-1, cumTime) %>% 
+  select(year, cumTime) %>% 
+  rename(winTime = cumTime) %>% 
+  right_join(data) %>% 
+  mutate()
+  
+
+
+animated_data <- data %>% 
+  group_by(year) %>% 
+  top_n))
+

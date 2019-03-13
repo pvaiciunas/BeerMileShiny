@@ -42,7 +42,8 @@ ui <- fluidPage(
               plotOutput("Beer_Plot"),
               tableOutput("Beer_Table"),
               plotOutput("Running_Plot"),
-              tableOutput("Running_Table"))
+              tableOutput("Running_Table"),
+              plotOutput("BoxPlot_Total"))
     
   ) # End sidebar layout
 ) #end fluidpage
@@ -54,9 +55,23 @@ server <- function(input, output, session) {
   
   # Total time plot
   output$Overall_Plot <- renderPlot({
-    ggplot(filter(data, name == input$Name, year %in% input$Year), 
-           aes(x = stage, y = cumTime, colour = year, group = year)) +
-      geom_line() + geom_point()
+    ggplot(filter(data, year %in% input$Year),
+           aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
+      geom_line(size = 1, alpha = 0.25) +
+      geom_line(data = filter(data, 
+                              name == input$Name, 
+                              year %in% input$Year),
+                aes(colour = year, group = interaction(name, year)), 
+                alpha = 1, size = 1.25) +
+      geom_point(data = filter(data,
+                               name == input$Name,
+                               year %in% input$Year,
+                               stage == "Running 4"),
+                 aes(colour = year, group = interaction(name, year)), 
+                 size = 3.5) +
+      labs(title = "Cumulative Time vs All Milers",
+           x = "Stage",
+           y = "Cumulative Time (Seconds)")
   }) # end Total race plot
   
   # Total Race Table
@@ -100,6 +115,20 @@ server <- function(input, output, session) {
       select(year, numStage, stageMinutes) %>% 
       spread(key = numStage, value = stageMinutes)
   }) # end Running Table
+  
+  output$BoxPlot_Total <- renderPlot({
+    ggplot(filter(data, year %in% input$Year), 
+           aes(x = numStage, y = time)) +
+      geom_boxplot() +
+      facet_grid(typeStage ~ ., scales = "free_y") +
+      geom_jitter(size = 1, width = 0.15) +
+      geom_jitter(data = filter(data, name == input$Name, year %in% input$Year), 
+                  aes(colour = year),
+                  size = 4.25, width = 0.15) +
+      labs(title = "All Running and Beer Times by Lap"
+           , x = "Lap Number"
+           , y = "Time (seconds)")
+  })
 }
 
 
