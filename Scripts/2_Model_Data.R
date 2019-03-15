@@ -1,12 +1,28 @@
 # This script takes in the 'data' obkect from 1_Load_and_Clean_Data.R
 
+library(zoo)
+
+secToMin <- function(seconds) {
+  
+  min <- floor(seconds / 60)
+  secs <- round(seconds%%60,1)
+  
+  output <- ifelse(min == 0
+                   , paste(secs,"sec", sep = "")
+                   , paste(min, "min ",round(secs,0), "sec", sep = ""))
+  output
+}
+
+
 # Make sure everything that should be a factor is a factor
 # newData <- newData %>%
 data <- data %>% 
   arrange(year, name, numStage, typeStage) %>% 
   group_by(year, name) %>% 
   mutate(cumTime = cumsum(time),
-         percDone = cumTime / max(cumTime)) %>% 
+         totalStages = n(),
+         percDone = sequence(n()) / totalStages,
+         raceType = ifelse(totalStages == 8, "full", "relay")) %>% 
   ungroup() %>% 
   mutate(numStage = factor(numStage),
          typeStage = factor(typeStage),
@@ -18,12 +34,16 @@ data <- data %>%
 data$stage = factor(data$stage, levels = unique(data$stage))
 
 
+
+
+
 # Need to create a dataframe that can be animated in points
 # Evenly space the 8 stages into 80 points? 
 # Should be winner in 80 stpes or something 
 
 # https://blog.revolutionanalytics.com/2017/05/tweenr.html
 
+# Find the max time for each year
 max_times <- data %>% 
   group_by(year) %>% 
   filter(stage == "Running 4") %>% 
@@ -31,18 +51,68 @@ max_times <- data %>%
   select(year, cumTime) %>% 
   rename(loseTime = cumTime)
 
+# Create a range of times between 1 second and the max_time for each year
 time_grid <- data.frame(year = NULL, seconds = NULL)
 for (i in 1:nrow(max_times)) {
-  tempdf <- data.frame(year = max_times$year[i], cumTime = 1:max_times$loseTime[i])
+  tempdf <- data.frame(year = max_times$year[i], cumTime = 0:max_times$loseTime[i])
   time_grid = rbind(time_grid, tempdf)
 }
 
+# need to add a stage 0, and time = 1 to everyone. 
+# Will do this by creating a temproary df with one entry per name/year, then 
+# replace the time with '1', and then rbind it to 'data'  and arrange. Will 
+# Delete this after, since we don't want a 0 stage in the actual dataset
+temp_df <- data %>% 
+  group_by(year, name) %>% 
+  top_n(1, cumTime) %>% 
+  mutate(cumTime = 0,
+         numStage = 0,
+         percDone = 0,
+         time = 0,
+         stageMinutes = NA,
+         cumMinutes = NA,
+         typeStage = "Beer")
+temp_df$numStage = factor(temp_df$numStage)
 
-animate_data <- full_join(time_grid, select(data, year, cumTime, name, percDone))
+# Join the data onto the time_grid
+# We want to see the percentage done at each 1 second interval in the time_grid
+animate_data <- data %>% 
+  bind_rows(temp_df) %>% 
+  arrange(year, name, numStage, typeStage) %>% 
+  select(year, name, cumTime, percDone) %>% 
+  spread(key = name, value = percDone) %>% 
+  right_join(time_grid, by = c("year","cumTime"))
 
-animate_data <- 
+rm(temp_df)
 
-animated_data <- data %>% 
-  group_by(year) %>% 
-  top_n))
+# Tidy the data
+animate_data <- animate_data %>% 
+  gather(key = name, value = percDone, -year, -cumTime)
 
+# Further steps become easier if we remove people who haven't done races
+# in specific years. So making a small dataframe for an inner-join
+year_participation <- data %>% 
+  group_by(year, name) %>% 
+  top_n(1, time) %>% 
+  select(name, year)
+
+animate_data <- inner_join(animate_data, 
+                           year_participation,
+                           by = c("year", "name"))
+
+
+# Fill in the missing values, and replace NAs with 1.00 because the person
+# is done the race at that point
+animate_data <- animate_data %>% 
+  group_by(year, name) %>% 
+  mutate(percDone = na.approx(percDone, na.rm = FALSE)) %>%
+  mutate(percDone = replace_na(percDone, 1.0))
+
+# Fill in any NAs at this point with 1.00 since the person is done the race
+
+sample_data <- filter(animate_data, 
+                      name %in% c("Petras Vaiciunas", "Vytas V", "Elijah W"),
+                      year == 2015)
+
+
+ggplot()

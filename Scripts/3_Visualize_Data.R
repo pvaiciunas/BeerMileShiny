@@ -52,17 +52,22 @@ ggplot(filter(data, year %in% year_list),
 
 
 # Annimated Race!!! :D:D:D:D:D
-ggplot(cty_mpg, aes(x=make, y=mileage)) + 
+# Use the 'animate_Data' object from the previous script
+ggplot(sample_data, aes(x=percDone, y=name)) + 
   geom_point(col="tomato2", size=3) +   # Draw points
-  geom_segment(aes(x=make, 
-                   xend=make, 
-                   y=min(mileage), 
-                   yend=max(mileage)), 
-               linetype="dashed", 
-               size=0.1) +   # Draw dashed lines
-  labs(title="Dot Plot", 
+  #geom_segment(aes(x=make, 
+   #                xend=make, 
+    #               y=min(mileage), 
+     #              yend=max(mileage)), 
+      #         linetype="dashed", 
+       #        size=0.1) +   # Draw dashed lines
+  labs(title='Seconds: {round(frame_time,0)}',
        subtitle="Make Vs Avg. Mileage", 
-       caption="source: mpg") +  
-  coord_flip()
+       caption="source: mpg") + 
+  transition_time(cumTime) +
+  ease_aes('linear') +
+  theme_classic()
+  
+  
 
-
+  
