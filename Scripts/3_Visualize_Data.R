@@ -1,5 +1,8 @@
 # Uses the 'data' object from the '2_Model_Data' script
 
+library(gganimate)
+
+
 year_list <- c("2017", "2016")
 
 temp_data <- filter(data, name == "Petras Vaiciunas", year %in% year_list)
@@ -49,12 +52,12 @@ ggplot(filter(data, year %in% year_list),
        y = "Cumulative Time (Seconds)")
             
 
-
+# http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
 
 # Annimated Race!!! :D:D:D:D:D
 # Use the 'animate_Data' object from the previous script
-ggplot(sample_data, aes(x=percDone, y=name)) + 
-  geom_point(col="tomato2", size=3) +   # Draw points
+ggplot(sample_data, aes(x=percDone, y=name, colour = stage)) + 
+  geom_point(size=3) +   # Draw points
   #geom_segment(aes(x=make, 
    #                xend=make, 
     #               y=min(mileage), 
@@ -64,6 +67,7 @@ ggplot(sample_data, aes(x=percDone, y=name)) +
   labs(title='Seconds: {round(frame_time,0)}',
        subtitle="Make Vs Avg. Mileage", 
        caption="source: mpg") + 
+  facet_wrap(~raceType, nrow = 2) +
   transition_time(cumTime) +
   ease_aes('linear') +
   theme_classic()

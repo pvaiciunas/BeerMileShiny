@@ -99,20 +99,34 @@ year_participation <- data %>%
 animate_data <- inner_join(animate_data, 
                            year_participation,
                            by = c("year", "name"))
-
+rm(year_participation)
 
 # Fill in the missing values, and replace NAs with 1.00 because the person
 # is done the race at that point
 animate_data <- animate_data %>% 
   group_by(year, name) %>% 
   mutate(percDone = na.approx(percDone, na.rm = FALSE)) %>%
-  mutate(percDone = replace_na(percDone, 1.0))
+  mutate(percDone = replace_na(percDone, 1.0)) %>% 
+  ungroup()
+
+# Add in the type of stage so that we can add that as a lyaer in the graph
+# Will need to know if they're a full or relay runner as well
+animate_data <- animate_data %>% 
+  left_join(unique(select(data, year, name, raceType)), by = c("year", "name")) %>%  
+  mutate(stage = "Running",
+         stage = ifelse(raceType == "full" & between(percDone, 0.75, 0.875), "Beer", stage),
+         stage = ifelse(raceType == "full" & between(percDone, 0.5, 0.625), "Beer", stage),
+         stage = ifelse(raceType == "full" & between(percDone, 0.25, 0.375), "Beer", stage),
+         stage = ifelse(raceType == "full" & between(percDone, 0, 0.125), "Beer", stage),
+         stage = ifelse(raceType == "relay" & between(percDone, 0, 0.25), "Beer", stage),
+         stage = ifelse(raceType == "relay" & between(percDone, 0.5, 0.75), "Beer", stage))
+         
+         
+
 
 # Fill in any NAs at this point with 1.00 since the person is done the race
 
 sample_data <- filter(animate_data, 
-                      name %in% c("Petras Vaiciunas", "Vytas V", "Elijah W"),
-                      year == 2015)
+                      year == 2016)
 
 
-ggplot()
