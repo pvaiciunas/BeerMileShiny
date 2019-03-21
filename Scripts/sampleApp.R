@@ -2,6 +2,7 @@
 library(shiny)
 library(shinythemes)
 library(readxl)
+library(gganimate)
 # This is a sample script taken from 
 # http://zevross.com/blog/2016/04/19/r-powered-web-applications-with-shiny-a-tutorial-and-cheat-sheet-with-40-example-apps/
 
@@ -12,7 +13,12 @@ library(readxl)
 # NEed to add better labelling for titles and tables
 # reconsider the cumulative time chart. How to present the full race?
 # Add average lines
-# 
+# Tabs:
+#   This year's results
+#       List of people and times (lollipop chart?)
+#       animated dot chart with timing????!!! Or can you make it over an oval???
+#   Historical Results
+#           
 
 # UI
 ui <- fluidPage(
@@ -36,15 +42,25 @@ ui <- fluidPage(
     ), # End sidebarPanel
                   
       
-    mainPanel("TMid-May McMile Results",
-              plotOutput("Overall_Plot"),
-              tableOutput("Overall_Table"),
-              plotOutput("Beer_Plot"),
-              tableOutput("Beer_Table"),
-              plotOutput("Running_Plot"),
-              tableOutput("Running_Table"),
-              plotOutput("BoxPlot_Total"))
-    
+    mainPanel(" Mid-May McMile Results",
+              tabsetPanel(type = "tabs",
+                          tabPanel("Overall Results",
+                                   verbatimTextOutput("asdf asdf asdf")),
+                          tabPanel("Individual Results",
+                                   textOutput("milerOverallTime"),
+                                   textOutput("milerRunTime"),
+                                   textOutput("milerBeerTime"),
+                                   plotOutput("Overall_Plot"),
+                                   tableOutput("Overall_Table"),
+                                   plotOutput("Beer_Plot"),
+                                   tableOutput("Beer_Table"),
+                                   plotOutput("Running_Plot"),
+                                   tableOutput("Running_Table"),
+                                   plotOutput("BoxPlot_Total")) # end tabPanel
+                          
+              ) # end tabsetPanel
+    ) # end mainPanel
+                          
   ) # End sidebar layout
 ) #end fluidpage
 
@@ -52,6 +68,36 @@ ui <- fluidPage(
 
 # Server 
 server <- function(input, output, session) {
+  
+  # The oveall time in text
+  output$milerOverallTime <- renderText({
+    paste0("Your overall time was ", 
+          filter(total_times, 
+                 name == input$Name, 
+                 year == input$Year, 
+                 typeStage == "Total")$totalMinutes,
+          ".")
+  })
+  
+  # The overall Running Time in text
+  output$milerOverallTime <- renderText({
+    paste0("You ran the full mile in ", 
+           filter(total_times, 
+                  name == input$Name, 
+                  year == input$Year, 
+                  typeStage == "Running")$totalMinutes,
+           ".")
+  })
+  
+  # The overall beer time in text
+  output$milerOverallTime <- renderText({
+    paste0("And it took you ", 
+           filter(total_times, 
+                  name == input$Name, 
+                  year == input$Year, 
+                  typeStage == "Beer")$totalMinutes,
+           " to drink the beer!")
+  })
   
   # Total time plot
   output$Overall_Plot <- renderPlot({

@@ -123,10 +123,18 @@ animate_data <- animate_data %>%
          
          
 
-
-# Fill in any NAs at this point with 1.00 since the person is done the race
-
-sample_data <- filter(animate_data, 
-                      year == 2016)
-
-
+# Create a total times dataframe that sums up and puts in nice format the total
+# Times for each type of stage and total race
+stage_times <- data %>% 
+  group_by(year, name, typeStage) %>% 
+  summarize(totalTime = sum(time)) %>% 
+  mutate(totalMinutes = secToMin(totalTime))
+  
+total_times <- data %>% 
+  group_by(year, name) %>% 
+  summarize(totalTime = sum(time)) %>% 
+  mutate(totalMinutes = secToMin(totalTime),
+         typeStage = "Total")
+  
+total_times = bind_rows(total_times, stage_times)
+rm(stage_times)
