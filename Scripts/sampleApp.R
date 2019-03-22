@@ -24,28 +24,42 @@ library(gganimate)
 ui <- fluidPage(
   
   titlePanel("Mid-May McMile Results"),
-  
   sidebarLayout(
     sidebarPanel(
+      conditionalPanel(
+        'input.dataset == "Race Summary"',
+        selectInput("RaceYear",
+                           label = "Select Year",
+                           choices = sort(unique(data$year)),
+                           selected = last(sort(unique(data$year)))),
+        helpText = "Choose Race Year"
+        ),
       
-      helpText("Select a name and Year below to view results."),
-      
-      selectInput("Name", 
-                  label = "Select Miler",
-                  choices = sort(unique(data$name))),
-      
-      checkboxGroupInput("Year",
-                  label = "Select Year",
-                  choices = unique(data$year),
-                  selected = unique(data$year))
-
+      conditionalPanel(
+        'input.dataset == "Individual Results"',
+        selectInput("Name", 
+                    label = "Select Miler",
+                    choices = sort(unique(data$name))),
+        checkboxGroupInput("MilerYear",
+                           label = "Select Year",
+                           choices = unique(data$year),
+                           selected = last(sort(unique(data$year)))),
+        helpText = "Choose Name and Race Years for individual results"
+      )
     ), # End sidebarPanel
                   
       
     mainPanel(" Mid-May McMile Results",
               tabsetPanel(type = "tabs",
-                          tabPanel("Overall Results",
-                                   verbatimTextOutput("asdf asdf asdf")),
+                          id = "dataset",
+                          tabPanel("Race Summary",
+                                   verbatimTextOutput("asdf asdf asdf"),
+                                   "Male Competitors",
+                                   plotOutput("totalMaleTimes"),
+                                   "Female Competitors",
+                                   plotOutput("totalFemaleTimes"),
+                                   "Relay Competitors",
+                                   plotOutput("totalRelayTimes")),
                           tabPanel("Individual Results",
                                    textOutput("milerOverallTime"),
                                    textOutput("milerRunTime"),
@@ -69,12 +83,48 @@ ui <- fluidPage(
 # Server 
 server <- function(input, output, session) {
   
+  ########## Overall Race Result Elements
+  output$totalMaleTimes <- renderPlot({
+    ggplot(filter(data, year == input$RaceYear, stage == "Running 4", sex == "M"), 
+           aes(y = cumTime, 
+               x = reorder(name, -cumTime),
+               label = cumMinutes)) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      geom_text(nudge_y = -75)
+  })
+  
+  output$totalFemaleTimes <- renderPlot({
+    ggplot(filter(data, year == input$RaceYear, stage == "Running 4", sex == "F"), 
+           aes(y = cumTime, 
+               x = reorder(name, -cumTime),
+               label = cumMinutes)) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      geom_text(nudge_y = -75)
+  })
+  
+  output$totalRelayTimes <- renderPlot({
+    ggplot(filter(data, year == input$RaceYear, stage == "Running 2", raceType == "relay"), 
+           aes(y = cumTime, 
+               x = reorder(name, -cumTime),
+               label = cumMinutes)) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      geom_text(nudge_y = -75)
+  })
+    
+    
+  
+  
+  ########## Individual Result Elements
+  
   # The oveall time in text
   output$milerOverallTime <- renderText({
     paste0("Your overall time was ", 
           filter(total_times, 
                  name == input$Name, 
-                 year == input$Year, 
+                 year == input$MilerYear, 
                  typeStage == "Total")$totalMinutes,
           ".")
   })
@@ -84,7 +134,7 @@ server <- function(input, output, session) {
     paste0("You ran the full mile in ", 
            filter(total_times, 
                   name == input$Name, 
-                  year == input$Year, 
+                  year == input$MilerYear, 
                   typeStage == "Running")$totalMinutes,
            ".")
   })
@@ -94,24 +144,24 @@ server <- function(input, output, session) {
     paste0("And it took you ", 
            filter(total_times, 
                   name == input$Name, 
-                  year == input$Year, 
+                  year == input$MilerYear, 
                   typeStage == "Beer")$totalMinutes,
            " to drink the beer!")
   })
   
   # Total time plot
   output$Overall_Plot <- renderPlot({
-    ggplot(filter(data, year %in% input$Year),
+    ggplot(filter(data, year %in% input$MilerYear),
            aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
       geom_line(size = 1, alpha = 0.25) +
       geom_line(data = filter(data, 
                               name == input$Name, 
-                              year %in% input$Year),
+                              year %in% input$MilerYear),
                 aes(colour = year, group = interaction(name, year)), 
                 alpha = 1, size = 1.25) +
       geom_point(data = filter(data,
                                name == input$Name,
-                               year %in% input$Year,
+                               year %in% input$MilerYear,
                                stage == "Running 4"),
                  aes(colour = year, group = interaction(name, year)), 
                  size = 3.5) +
@@ -123,7 +173,7 @@ server <- function(input, output, session) {
   # Total Race Table
   output$Overall_Table <- renderTable({
     data %>% 
-      filter(name == input$Name, stage == "Running 4", year %in% input$Year) %>% 
+      filter(name == input$Name, stage == "Running 4", year %in% input$MilerYear) %>% 
       select(year, cumMinutes)
       
       
@@ -132,7 +182,7 @@ server <- function(input, output, session) {
   
   # Beer Plot
   output$Beer_Plot <- renderPlot({
-    ggplot(filter(data, name == input$Name, typeStage == "Beer", year %in% input$Year), 
+    ggplot(filter(data, name == input$Name, typeStage == "Beer", year %in% input$MilerYear), 
            aes(x = numStage, y = time, fill = year)) +
       geom_bar(stat = "identity", position = position_dodge()) +
       labs(x = "Stage Number", y = "Seconds") 
@@ -141,14 +191,14 @@ server <- function(input, output, session) {
   # Beer Table
   output$Beer_Table <- renderTable({ 
     data %>% 
-    filter(name == input$Name, typeStage == "Beer", year %in% input$Year) %>% 
+    filter(name == input$Name, typeStage == "Beer", year %in% input$MilerYear) %>% 
     select(year, numStage, stageMinutes) %>% 
     spread(key = numStage, value = stageMinutes)
   }) # end Beer Table
   
   # Running Plot
   output$Running_Plot <- renderPlot({
-    ggplot(filter(data, name == input$Name, typeStage == "Running", year %in% input$Year), 
+    ggplot(filter(data, name == input$Name, typeStage == "Running", year %in% input$MilerYear), 
            aes(x = numStage, y = time, fill = year)) +
       geom_bar(stat = "identity", position = position_dodge()) +
       labs(x = "Stage Number", y = "Seconds") 
@@ -157,7 +207,7 @@ server <- function(input, output, session) {
   # Running Table
   output$Running_Table <- renderTable({ 
     data %>% 
-      filter(name == input$Name, typeStage == "Running", year %in% input$Year) %>% 
+      filter(name == input$Name, typeStage == "Running", year %in% input$MilerYear) %>% 
       select(year, numStage, stageMinutes) %>% 
       spread(key = numStage, value = stageMinutes)
   }) # end Running Table
@@ -168,7 +218,7 @@ server <- function(input, output, session) {
       geom_boxplot() +
       facet_grid(typeStage ~ ., scales = "free_y") +
       geom_jitter(size = 1, width = 0.15) +
-      geom_jitter(data = filter(data, name == input$Name, year %in% input$Year), 
+      geom_jitter(data = filter(data, name == input$Name, year %in% input$MilerYear), 
                   aes(colour = year),
                   size = 4.25, width = 0.15) +
       labs(title = "All Running and Beer Times by Lap"

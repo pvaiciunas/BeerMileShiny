@@ -40,38 +40,55 @@ ggplot(filter(data, year %in% year_list),
        , y = "Time (seconds)")
 
 
+# Animated Data -----------------------------------------------------------
+
+# These graphs are for animated data, but crrently won't be used in the app
+# 
 # Cumulative time vs others in different years
-ggplot(filter(data, year %in% year_list),
-       aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
-  geom_line(size = 1, alpha = 0.25) +
-  geom_line(data = filter(data, name == "Petras Vaiciunas", year %in% year_list),
-            aes(colour = year, group = interaction(name, year)), 
-            alpha = 1, size = 1.25) +
-  labs(title = "Cumulative Time vs All Milers",
-       x = "Stage",
-       y = "Cumulative Time (Seconds)")
-            
-
-# http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
-
-# Annimated Race!!! :D:D:D:D:D
-# Use the 'animate_Data' object from the previous script
-ggplot(sample_data, aes(x=percDone, y=name, colour = stage)) + 
-  geom_point(size=3) +   # Draw points
-  #geom_segment(aes(x=make, 
-   #                xend=make, 
-    #               y=min(mileage), 
-     #              yend=max(mileage)), 
-      #         linetype="dashed", 
-       #        size=0.1) +   # Draw dashed lines
-  labs(title='Seconds: {round(frame_time,0)}',
-       subtitle="Make Vs Avg. Mileage", 
-       caption="source: mpg") + 
-  facet_wrap(~raceType, nrow = 2) +
-  transition_time(cumTime) +
-  ease_aes('linear') +
-  theme_classic()
+# ggplot(filter(data, year %in% year_list),
+#        aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
+#   geom_line(size = 1, alpha = 0.25) +
+#   geom_line(data = filter(data, name == "Petras Vaiciunas", year %in% year_list),
+#             aes(colour = year, group = interaction(name, year)), 
+#             alpha = 1, size = 1.25) +
+#   labs(title = "Cumulative Time vs All Milers",
+#        x = "Stage",
+#        y = "Cumulative Time (Seconds)")
+#             
+# 
+# # http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+# 
+# # Annimated Race!!! :D:D:D:D:D
+# # Use the 'animate_Data' object from the previous script
+# ggplot(animate_data, aes(x=percDone, y=name, colour = stage)) + 
+#   geom_point(size=3) +   # Draw points
+#   #geom_segment(aes(x=make, 
+#    #                xend=make, 
+#     #               y=min(mileage), 
+#      #              yend=max(mileage)), 
+#       #         linetype="dashed", 
+#        #        size=0.1) +   # Draw dashed lines
+#   labs(title='Seconds: {round(frame_time,0)}',
+#        subtitle="Make Vs Avg. Mileage", 
+#        caption="source: mpg") + 
+#   facet_wrap(~raceType, nrow = 2) +
+#   transition_time(cumTime) +
+#   ease_aes('linear') +
+#   theme_classic()
   
   
+
+# Overall REsults Graphs --------------------------------------------------
+
+# Create graph with the total times per person
+ggplot(filter(data, year == "2016", stage == "Running 4"), 
+       aes(y = cumTime, 
+           x = reorder(name, -cumTime),
+           label = cumMinutes)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  geom_text(nudge_y = -75) +
+  facet_wrap(~raceType)
+
 
   
