@@ -1,7 +1,7 @@
 # Uses the 'data' object from the '2_Model_Data' script
 
 library(gganimate)
-
+library(scales)
 
 year_list <- c("2017", "2016")
 
@@ -12,10 +12,13 @@ ggplot(filter(data,
               name == "Petras Vaiciunas",
               year %in% year_list,
               typeStage == "Beer"),
-       aes(x = numStage, y = time, fill = year)) +
+       aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
   geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+  coord_flip() +  
   labs(x = "Stage Number",
-       y = "Seconds")
+       y = "Seconds") +
+  guides(fill = guide_legend(reverse=TRUE))
 
 
 
@@ -38,6 +41,9 @@ ggplot(filter(data, year %in% year_list),
   labs(title = "All Running and Beer Times by Lap"
        , x = "Lap Number"
        , y = "Time (seconds)")
+
+
+
 
 
 # Animated Data -----------------------------------------------------------
@@ -81,14 +87,65 @@ ggplot(filter(data, year %in% year_list),
 # Overall REsults Graphs --------------------------------------------------
 
 # Create graph with the total times per person
-ggplot(filter(data, year == "2016", stage == "Running 4"), 
-       aes(y = cumTime, 
-           x = reorder(name, -cumTime),
-           label = cumMinutes)) +
+ggplot(filter(total_times, year == "2016", typeStage == "Total"), 
+       aes(y = totalTime, 
+           x = reorder(name, -totalTime),
+           label = totalMinutes)) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  geom_text(nudge_y = -75) +
-  facet_wrap(~raceType)
+  geom_text(nudge_y = -100) +
+  facet_wrap(~raceType, nrow = 2, scales = "free_y")
+
+ggplot(filter(total_times, year == "2016", typeStage == "Beer"), 
+       aes(y = totalTime, 
+           x = reorder(name, -totalTime),
+           label = totalMinutes)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  geom_text(hjust = 1.1) +
+  facet_wrap(~raceType, nrow = 2, scales = "free_y")
 
 
+# distributinos by lap 
+# # GOOD AND THIS IS NOW USED
+x <- filter(data, year == 2016)
+
+ggplot(rename(x, "Lap" = "numStage"), aes(x = time, group = Lap, fill = Lap, colour = Lap)) +
+  geom_density(size = 0.75, alpha = 0.3) +
+  facet_wrap(~typeStage, ncol = 1, scales = "free_x") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Total Seconds",
+       y = "Density")
   
+  
+# Distribution by lap - Individuals
+x <- filter(total_times, year == 2016)
+
+ggplot(filter(x, typeStage != "Total"), aes(x = avgTime)) +
+  geom_density(size = 0.75, alpha = 0.3) +
+  geom_vline(data = filter(x, name == "Petras Vaiciunas", typeStage != "Total"), aes(xintercept = avgTime, colour = year)) +
+  facet_wrap(~typeStage, ncol = 1, scales = "free") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+  labs(x = "Total Seconds",
+       y = "Density") +
+  scale_colour_discrete("Avg Time")
+
+
+
+
+
+ggplot(filter(total_times, 
+              typeStage != "Total", 
+              year %in% year_list), 
+       aes(x = avgTime)) +
+  geom_density() +
+  geom_vline(data = filter(total_times, 
+                           name == "Petras Vaiciunas", 
+                           typeStage != "Total",
+                           year %in% year_list), 
+             aes(xintercept = avgTime, colour = year)) +
+  facet_wrap(~typeStage, ncol = 1, scales = "free") +
+  scale_y_continuous(labels = scales::percent_format(accuracey = 0.1)) +
+  labs(x = "Average Seconds",
+       y = "Density") +
+  scale_colour_discrete("Avg Time")

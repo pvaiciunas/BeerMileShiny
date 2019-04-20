@@ -16,7 +16,7 @@ id2015 <- "1WJ9STugxvVfalrMqTvK6icPgHSsLEgJp"
 id2016 <- "1mkDqvMqquH0Z40ZjULK3r9X9U7TQu2qX"
 id2017 <- "1skqTcMwyfYjL1ZB-oCq_H91oQ_s78gbB"
 id2018 <- "1OWJN5YWDs7i9jho_MDvp378PPzlJsGCa"
-
+           
 
 # Create connection and download the data for each
 # Work was done in 2018 to aggregate all the data, so we only need to download

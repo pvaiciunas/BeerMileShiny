@@ -53,24 +53,40 @@ ui <- fluidPage(
               tabsetPanel(type = "tabs",
                           id = "dataset",
                           tabPanel("Race Summary",
-                                   verbatimTextOutput("asdf asdf asdf"),
-                                   "Male Competitors",
-                                   plotOutput("totalMaleTimes"),
-                                   "Female Competitors",
-                                   plotOutput("totalFemaleTimes"),
-                                   "Relay Competitors",
-                                   plotOutput("totalRelayTimes")),
+                                   h4("Overall Results"),
+                                   tableOutput("summaryTable"),
+                                   h4("Total Mid May McCarren Mile Times"),
+                                   plotOutput("totalTimesPlot"),
+                                   h4("Average Beer Times"),
+                                   plotOutput("avgBeerPlot"),
+                                   h4("Average Running Times"),
+                                   plotOutput("avgRunPlot"),
+                                   h4("Beer and Running Distributions by Lap"),
+                                   plotOutput("lapDistributions"),
+                                   h4("Beer and Running Boxplots by Stage"),
+                                   plotOutput("lapBoxplots")),
                           tabPanel("Individual Results",
-                                   textOutput("milerOverallTime"),
-                                   textOutput("milerRunTime"),
-                                   textOutput("milerBeerTime"),
-                                   plotOutput("Overall_Plot"),
-                                   tableOutput("Overall_Table"),
-                                   plotOutput("Beer_Plot"),
-                                   tableOutput("Beer_Table"),
-                                   plotOutput("Running_Plot"),
-                                   tableOutput("Running_Table"),
-                                   plotOutput("BoxPlot_Total")) # end tabPanel
+                                   # Table 1 - Overall Results
+                                   h4("Overall Results"),
+                                   tableOutput("summaryTableIndividual"),
+                                   # Plot 1 - Cumulative Times, i.e. total times
+                                   h4("Cumulative Race Times"),
+                                   helpText("sample help text"),
+                                   plotOutput("cumulativeTimePlot"),
+                                   # Plot 2 - Avg Beer Times, Bar Plot
+                                   h4("Beer Times"),
+                                   plotOutput("beerPlotIndividual"),
+                                   # Plot 3 - Avg Run Times, Bar Plot
+                                   h4("Running Times"),
+                                   plotOutput("runPlotIndividual"),
+                                   # Plot 4 - Distributions of avg beer and run times
+                                   h4("Beer and Running Distribution Relative to Others"),
+                                   helpText("sample help text"),
+                                   plotOutput("lapDistributionsIndividual"),
+                                   # Plot 5 - Boxplots of avg beer and run times
+                                   h4("Beer and Running Boxplot Relative to Others"),
+                                   helpText("sample help text"),
+                                   plotOutput("lapBoxplotsIndividual")) # end tabPanel
                           
               ) # end tabsetPanel
     ) # end mainPanel
@@ -84,73 +100,90 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   ########## Overall Race Result Elements
-  output$totalMaleTimes <- renderPlot({
-    ggplot(filter(data, year == input$RaceYear, stage == "Running 4", sex == "M"), 
-           aes(y = cumTime, 
-               x = reorder(name, -cumTime),
-               label = cumMinutes)) +
-      geom_bar(stat = "identity") +
-      coord_flip() +
-      geom_text(nudge_y = -75)
+  
+  # Full results. Name, total time, avg beer, avg lap, type race.
+  output$summaryTable <- renderTable({
+    filter(summary_table, Year == input$RaceYear) %>% 
+      select(-Year)
+    
   })
   
-  output$totalFemaleTimes <- renderPlot({
-    ggplot(filter(data, year == input$RaceYear, stage == "Running 4", sex == "F"), 
-           aes(y = cumTime, 
-               x = reorder(name, -cumTime),
-               label = cumMinutes)) +
+  # Total race times per runner. Facets on type of race
+  output$totalTimesPlot <- renderPlot({
+    ggplot(filter(total_times, year == input$RaceYear, typeStage == "Total"), 
+           aes(y = totalTime, 
+              x = reorder(name, -totalTime),
+              label = totalMinutes)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      geom_text(nudge_y = -75)
+      geom_text(aes(y = 5), position = position_dodge(0.9), hjust = "left") +
+      facet_wrap(~raceType, nrow = 2, scales = "free_y") +
+      labs(y = "", x = "Total Time")
+    
   })
   
-  output$totalRelayTimes <- renderPlot({
-    ggplot(filter(data, year == input$RaceYear, stage == "Running 2", raceType == "relay"), 
-           aes(y = cumTime, 
-               x = reorder(name, -cumTime),
-               label = cumMinutes)) +
+  # Avg beer time, no facetting
+  output$avgBeerPlot <- renderPlot({
+    ggplot(filter(total_times, year == input$RaceYear, typeStage == "Beer"), 
+           aes(y = avgTime, 
+               x = reorder(name, -avgTime),
+               label = avgMinutes)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      geom_text(nudge_y = -75)
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left") +
+      labs(y = "", x = "Avg Beer Time")
+  })
+  
+  # Avg running time, no facetting
+  output$avgRunPlot <- renderPlot({
+    ggplot(filter(total_times, year == input$RaceYear, typeStage == "Running"), 
+           aes(y = avgTime, 
+               x = reorder(name, -avgTime),
+               label = avgMinutes)) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left") +
+      labs(y = "", x = "Avg Lap Time")
   })
     
-    
+  # Distributinos of running drinking per lap
+  output$lapDistributions <- renderPlot({
+    ggplot(rename(filter(data, year == input$RaceYear), # Filter the year out
+                  "Lap" = "numStage"), # Rename the numStage variable to "Lap"
+           aes(x = time, group = Lap, fill = Lap, colour = Lap)) +
+      geom_density(size = 0.75, alpha = 0.3) +
+      facet_wrap(~typeStage, ncol = 1, scales = "free") +
+      scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+      labs(x = "Total Seconds",
+            y = "Density")
   
+  })
+  
+  # Boxplots of running drinking per lap
+  output$lapBoxplots <- renderPlot({
+    ggplot(filter(data, year == input$RaceYear), # Filter the year out
+           aes(x = numStage, y = time, fill = typeStage)) +
+      geom_boxplot(alpha = 0.5) +
+      facet_wrap(~typeStage, ncol = 1, scales = "free") +
+      geom_jitter(size = 1, width = 0.15) +
+      labs(x = "Lap Number",
+           y = "Seconds") +
+      theme(legend.position="none")
+    
+  })
   
   ########## Individual Result Elements
-  
-  # The oveall time in text
-  output$milerOverallTime <- renderText({
-    paste0("Your overall time was ", 
-          filter(total_times, 
-                 name == input$Name, 
-                 year == input$MilerYear, 
-                 typeStage == "Total")$totalMinutes,
-          ".")
+
+  # Summary Table per Individual
+  output$summaryTableIndividual <- renderTable({
+    filter(summary_table, 
+           Year %in% input$MilerYear,
+           Name == input$Name)
   })
-  
-  # The overall Running Time in text
-  output$milerOverallTime <- renderText({
-    paste0("You ran the full mile in ", 
-           filter(total_times, 
-                  name == input$Name, 
-                  year == input$MilerYear, 
-                  typeStage == "Running")$totalMinutes,
-           ".")
-  })
-  
-  # The overall beer time in text
-  output$milerOverallTime <- renderText({
-    paste0("And it took you ", 
-           filter(total_times, 
-                  name == input$Name, 
-                  year == input$MilerYear, 
-                  typeStage == "Beer")$totalMinutes,
-           " to drink the beer!")
-  })
-  
-  # Total time plot
-  output$Overall_Plot <- renderPlot({
+      
+
+  # Cumulative time plot, line plot
+  output$cumulativeTimePlot <- renderPlot({
     ggplot(filter(data, year %in% input$MilerYear),
            aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
       geom_line(size = 1, alpha = 0.25) +
@@ -167,7 +200,8 @@ server <- function(input, output, session) {
                  size = 3.5) +
       labs(title = "Cumulative Time vs All Milers",
            x = "Stage",
-           y = "Cumulative Time (Seconds)")
+           y = "Cumulative Time (Seconds)") +
+      guides(fill = guide_legend(reverse=TRUE))
   }) # end Total race plot
   
   # Total Race Table
@@ -181,39 +215,55 @@ server <- function(input, output, session) {
   })
   
   # Beer Plot
-  output$Beer_Plot <- renderPlot({
-    ggplot(filter(data, name == input$Name, typeStage == "Beer", year %in% input$MilerYear), 
-           aes(x = numStage, y = time, fill = year)) +
+  output$beerPlotIndividual <- renderPlot({
+    ggplot(filter(data, name == input$Name, year %in% input$MilerYear, typeStage == "Beer"), 
+           # Need to reorder the numStage due to the coor_flip later
+           aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
       geom_bar(stat = "identity", position = position_dodge()) +
-      labs(x = "Stage Number", y = "Seconds") 
+      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+      coord_flip() +
+      labs(x = "Beer Number", y = "Seconds") +
+      guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
   }) # end BeerPlot
   
-  # Beer Table
-  output$Beer_Table <- renderTable({ 
-    data %>% 
-    filter(name == input$Name, typeStage == "Beer", year %in% input$MilerYear) %>% 
-    select(year, numStage, stageMinutes) %>% 
-    spread(key = numStage, value = stageMinutes)
-  }) # end Beer Table
   
   # Running Plot
-  output$Running_Plot <- renderPlot({
-    ggplot(filter(data, name == input$Name, typeStage == "Running", year %in% input$MilerYear), 
-           aes(x = numStage, y = time, fill = year)) +
+  output$runPlotIndividual <- renderPlot({
+    ggplot(filter(data, name == input$Name, year %in% input$MilerYear, typeStage == "Running"), 
+           # Need to reorder the numStage due to the coor_flip later
+           aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
       geom_bar(stat = "identity", position = position_dodge()) +
-      labs(x = "Stage Number", y = "Seconds") 
+      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+      coord_flip() +
+      labs(x = "Lap Number", y = "Seconds") +
+      guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
   }) # end Running Plot
   
-  # Running Table
-  output$Running_Table <- renderTable({ 
-    data %>% 
-      filter(name == input$Name, typeStage == "Running", year %in% input$MilerYear) %>% 
-      select(year, numStage, stageMinutes) %>% 
-      spread(key = numStage, value = stageMinutes)
-  }) # end Running Table
   
-  output$BoxPlot_Total <- renderPlot({
-    ggplot(filter(data, year %in% input$Year), 
+    # Distributinos of running and drinking per lap. Individual lines added
+  output$lapDistributionsIndividual <- renderPlot({
+    ggplot(filter(total_times, 
+                   typeStage != "Total", 
+                   year %in% input$MilerYear), 
+            aes(x = avgTime)) +
+      geom_density() +
+      geom_vline(data = filter(total_times, 
+                               name == input$Name, 
+                               typeStage != "Total",
+                               year %in% input$MilerYear), 
+                 aes(xintercept = avgTime, colour = year)) +
+      facet_wrap(~typeStage, ncol = 1, scales = "free") +
+      scale_y_continuous(labels = scales::percent_format(accuracey = 0.1)) +
+      labs(x = "Average Seconds",
+           y = "Density") +
+      scale_colour_discrete("Avg Time") +
+      guides(fill = guide_legend(reverse=TRUE))
+    })
+  
+  
+  # Boxplot graphs
+  output$lapBoxplotsIndividual <- renderPlot({
+    ggplot(filter(data, year %in% input$MilerYear), 
            aes(x = numStage, y = time)) +
       geom_boxplot() +
       facet_grid(typeStage ~ ., scales = "free_y") +
@@ -223,7 +273,8 @@ server <- function(input, output, session) {
                   size = 4.25, width = 0.15) +
       labs(title = "All Running and Beer Times by Lap"
            , x = "Lap Number"
-           , y = "Time (seconds)")
+           , y = "Time (seconds)") +
+      guides(fill = guide_legend(reverse=TRUE))
   })
 }
 

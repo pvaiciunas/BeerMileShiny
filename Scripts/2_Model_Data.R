@@ -1,6 +1,8 @@
 # This script takes in the 'data' obkect from 1_Load_and_Clean_Data.R
 
 library(zoo)
+library(devtools)
+
 
 secToMin <- function(seconds) {
   
@@ -22,7 +24,7 @@ data <- data %>%
   mutate(cumTime = cumsum(time),
          totalStages = n(),
          percDone = sequence(n()) / totalStages,
-         raceType = ifelse(totalStages == 8, "full", "relay")) %>% 
+         raceType = ifelse(totalStages == 8, "Full Mile", "Relay")) %>% 
   ungroup() %>% 
   mutate(numStage = factor(numStage),
          typeStage = factor(typeStage),
@@ -129,6 +131,7 @@ stage_times <- data %>%
   group_by(year, name, typeStage) %>% 
   summarize(totalTime = sum(time)) %>% 
   mutate(totalMinutes = secToMin(totalTime))
+         
   
 total_times <- data %>% 
   group_by(year, name) %>% 
@@ -136,5 +139,34 @@ total_times <- data %>%
   mutate(totalMinutes = secToMin(totalTime),
          typeStage = "Total")
   
-total_times = bind_rows(total_times, stage_times)
+total_times <- total_times %>% 
+  bind_rows(stage_times) %>% 
+  left_join(unique(select(data, year, name, raceType)))
+
+# Create average time columns 
+total_times <- total_times %>% 
+  mutate(avgTime = ifelse(raceType == "Relay", totalTime/2, totalTime/4),
+         avgMinutes = secToMin(avgTime))
+
 rm(stage_times)
+
+summary_table <- total_times %>% 
+  ungroup() %>% 
+  select(-totalMinutes) %>% 
+  spread(typeStage, totalTime) %>% 
+  select(year, name, Total, Beer, Running, raceType) %>%
+  arrange(year, raceType, Total) %>% 
+  mutate(Beer = secToMin(ifelse(raceType == "Relay", Beer/2, Beer/4)),
+         Running = secToMin(ifelse(raceType == "Relay", Running/2, Running/4)),
+         Total = secToMin(Total)) %>% 
+  rename(Name = name, 
+         'Total Time' = Total,
+         'Avg Beer' = Beer,
+         "Avg Lap" = Running,
+         'Race Type' = raceType,
+         "Year" = year)
+  
+  
+
+
+
