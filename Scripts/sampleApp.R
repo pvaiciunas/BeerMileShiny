@@ -2,10 +2,13 @@
 library(shiny)
 library(shinythemes)
 library(readxl)
-library(gganimate)
+library(ggthemr)
+library(scales)
 # This is a sample script taken from 
 # http://zevross.com/blog/2016/04/19/r-powered-web-applications-with-shiny-a-tutorial-and-cheat-sheet-with-40-example-apps/
 
+
+ggthemr("fresh", layout = "minimal")
 # Load in the necessary data
 
 # TODO
@@ -22,6 +25,8 @@ library(gganimate)
 
 # UI
 ui <- fluidPage(
+  
+  theme = shinytheme("flatly"),
   
   titlePanel("Mid-May McMile Results"),
   sidebarLayout(
@@ -43,7 +48,7 @@ ui <- fluidPage(
         checkboxGroupInput("MilerYear",
                            label = "Select Year",
                            choices = unique(data$year),
-                           selected = last(sort(unique(data$year)))),
+                           selected = unique(data$year)),
         helpText = "Choose Name and Race Years for individual results"
       )
     ), # End sidebarPanel
@@ -71,21 +76,31 @@ ui <- fluidPage(
                                    tableOutput("summaryTableIndividual"),
                                    # Plot 1 - Cumulative Times, i.e. total times
                                    h4("Cumulative Race Times"),
-                                   helpText("sample help text"),
+                                   helpText("These graphs show your cumulative race time (bold colours).
+                                            All other racers for the respective years are graphed in faded colours"),
                                    plotOutput("cumulativeTimePlot"),
                                    # Plot 2 - Avg Beer Times, Bar Plot
-                                   h4("Beer Times"),
+                                   h4("Average Beer Times"),
                                    plotOutput("beerPlotIndividual"),
                                    # Plot 3 - Avg Run Times, Bar Plot
-                                   h4("Running Times"),
+                                   h4("Average Running Times"),
                                    plotOutput("runPlotIndividual"),
                                    # Plot 4 - Distributions of avg beer and run times
                                    h4("Beer and Running Distribution Relative to Others"),
-                                   helpText("sample help text"),
+                                   helpText("This graph shows the distribution of average beer and running
+                                            times of all runners over the years you have selected aboved. Your
+                                            individual averages for each year are graphed as vertical lines."),
                                    plotOutput("lapDistributionsIndividual"),
                                    # Plot 5 - Boxplots of avg beer and run times
                                    h4("Beer and Running Boxplot Relative to Others"),
-                                   helpText("sample help text"),
+                                   helpText("This graph uses Boxplots to show the distribution of beer and 
+                                            running times of all runners for each stage of the race over 
+                                            the years you have selected above. These types of graphs visualize
+                                            five statistics: the median (line in the middle of the box), the 25th
+                                            and 75th percentiles (the top and bottom of the box), and then the
+                                            whiskers at the top and bottom are approxiamtely the 95% confidence
+                                            interval around the median (-ish). The small dots are everyon's actual
+                                            results. Your results are graphed as bold points coloured by year."),
                                    plotOutput("lapBoxplotsIndividual")) # end tabPanel
                           
               ) # end tabsetPanel
@@ -116,7 +131,7 @@ server <- function(input, output, session) {
               label = totalMinutes)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      geom_text(aes(y = 5), position = position_dodge(0.9), hjust = "left") +
+      geom_text(aes(y = 5), position = position_dodge(0.9), hjust = "left", colour = "white") +
       facet_wrap(~raceType, nrow = 2, scales = "free_y") +
       labs(y = "", x = "Total Time")
     
@@ -130,7 +145,7 @@ server <- function(input, output, session) {
                label = avgMinutes)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left") +
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "white") +
       labs(y = "", x = "Avg Beer Time")
   })
   
@@ -142,7 +157,7 @@ server <- function(input, output, session) {
                label = avgMinutes)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left") +
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "white") +
       labs(y = "", x = "Avg Lap Time")
   })
     
@@ -153,7 +168,7 @@ server <- function(input, output, session) {
            aes(x = time, group = Lap, fill = Lap, colour = Lap)) +
       geom_density(size = 0.75, alpha = 0.3) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
-      scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+      scale_y_continuous(labels = scales::percent) +
       labs(x = "Total Seconds",
             y = "Density")
   
@@ -163,12 +178,13 @@ server <- function(input, output, session) {
   output$lapBoxplots <- renderPlot({
     ggplot(filter(data, year == input$RaceYear), # Filter the year out
            aes(x = numStage, y = time, fill = typeStage)) +
-      geom_boxplot(alpha = 0.5) +
+      geom_boxplot(aes(fill = typeStage), alpha = 0.4) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
-      geom_jitter(size = 1, width = 0.15) +
+      geom_jitter(size = 1.25, width = 0.15, colour = "black") +
       labs(x = "Lap Number",
            y = "Seconds") +
-      theme(legend.position="none")
+      theme(legend.position="none") +
+      scale_fill_discrete("")
     
   })
   
@@ -176,9 +192,10 @@ server <- function(input, output, session) {
 
   # Summary Table per Individual
   output$summaryTableIndividual <- renderTable({
-    filter(summary_table, 
-           Year %in% input$MilerYear,
-           Name == input$Name)
+    summary_table %>% 
+      filter(Year %in% input$MilerYear,
+             Name == input$Name) %>% 
+      arrange(desc(Year))
   })
       
 
@@ -186,41 +203,40 @@ server <- function(input, output, session) {
   output$cumulativeTimePlot <- renderPlot({
     ggplot(filter(data, year %in% input$MilerYear),
            aes(x = stage, y = cumTime, group = interaction(name, year), colour = year)) +
-      geom_line(size = 1, alpha = 0.25) +
+      geom_line(size = 1, alpha = 0.2) +
       geom_line(data = filter(data, 
                               name == input$Name, 
                               year %in% input$MilerYear),
                 aes(colour = year, group = interaction(name, year)), 
-                alpha = 1, size = 1.25) +
-      geom_point(data = filter(data,
-                               name == input$Name,
-                               year %in% input$MilerYear,
-                               stage == "Running 4"),
+                alpha = 1, size = 1.4) +
+      # this looks tricky, and it is. Some of the runners only did the relay. 
+      # This messes things up, because they end at stage "Running 2", which isn't
+      # the point we want to graph for people that ran the full thing. A workaround
+      # That helps not create a more messy dataframe is just to manually tweak
+      # one here, and add one some data to the total_times df to match the data df.
+      geom_point(data = mutate(filter(total_times,
+                                      name == input$Name,
+                                      year %in% input$MilerYear,
+                                      typeStage == "Total"),
+                               stage = ifelse(raceType == "Relay",
+                                              "Running 2", "Running 4"),
+                               cumTime = totalTime),
                  aes(colour = year, group = interaction(name, year)), 
-                 size = 3.5) +
-      labs(title = "Cumulative Time vs All Milers",
-           x = "Stage",
+                 size = 3.75) +
+      labs(x = "Stage",
            y = "Cumulative Time (Seconds)") +
-      guides(fill = guide_legend(reverse=TRUE))
+      guides(colour = guide_legend(reverse=TRUE))
+    
   }) # end Total race plot
   
-  # Total Race Table
-  output$Overall_Table <- renderTable({
-    data %>% 
-      filter(name == input$Name, stage == "Running 4", year %in% input$MilerYear) %>% 
-      select(year, cumMinutes)
-      
-      
-    
-  })
-  
+
   # Beer Plot
   output$beerPlotIndividual <- renderPlot({
     ggplot(filter(data, name == input$Name, year %in% input$MilerYear, typeStage == "Beer"), 
            # Need to reorder the numStage due to the coor_flip later
            aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
       geom_bar(stat = "identity", position = position_dodge()) +
-      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left", colour="white") +
       coord_flip() +
       labs(x = "Beer Number", y = "Seconds") +
       guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
@@ -233,7 +249,7 @@ server <- function(input, output, session) {
            # Need to reorder the numStage due to the coor_flip later
            aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
       geom_bar(stat = "identity", position = position_dodge()) +
-      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left", colour="white") +
       coord_flip() +
       labs(x = "Lap Number", y = "Seconds") +
       guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
@@ -246,18 +262,19 @@ server <- function(input, output, session) {
                    typeStage != "Total", 
                    year %in% input$MilerYear), 
             aes(x = avgTime)) +
-      geom_density() +
+      geom_density(aes(fill = typeStage), alpha = 0.4) +
       geom_vline(data = filter(total_times, 
                                name == input$Name, 
                                typeStage != "Total",
                                year %in% input$MilerYear), 
-                 aes(xintercept = avgTime, colour = year)) +
+                 aes(xintercept = avgTime, colour = year),
+                 size = 1.5) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
-      scale_y_continuous(labels = scales::percent_format(accuracey = 0.1)) +
+      scale_y_continuous(labels = scales::percent) +
       labs(x = "Average Seconds",
            y = "Density") +
       scale_colour_discrete("Avg Time") +
-      guides(fill = guide_legend(reverse=TRUE))
+      guides(colour = guide_legend(reverse=TRUE))
     })
   
   
@@ -265,16 +282,17 @@ server <- function(input, output, session) {
   output$lapBoxplotsIndividual <- renderPlot({
     ggplot(filter(data, year %in% input$MilerYear), 
            aes(x = numStage, y = time)) +
-      geom_boxplot() +
-      facet_grid(typeStage ~ ., scales = "free_y") +
-      geom_jitter(size = 1, width = 0.15) +
+      geom_boxplot(aes(fill = typeStage), alpha = 0.4) +
+      facet_wrap(~typeStage, ncol = 1, scales = "free_y") +
+      geom_jitter(size = 1.25, width = 0.15, colour = "black") +
       geom_jitter(data = filter(data, name == input$Name, year %in% input$MilerYear), 
                   aes(colour = year),
-                  size = 4.25, width = 0.15) +
-      labs(title = "All Running and Beer Times by Lap"
-           , x = "Lap Number"
-           , y = "Time (seconds)") +
-      guides(fill = guide_legend(reverse=TRUE))
+                  size = 4.5, width = 0.15) +
+      labs(x = "Lap Number",
+           y = "Time (seconds)") +
+      guides(colour = guide_legend(reverse=TRUE)) +
+      scale_fill_discrete("")
+      
   })
 }
 

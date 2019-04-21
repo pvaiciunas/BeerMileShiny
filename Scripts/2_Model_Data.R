@@ -2,6 +2,7 @@
 
 library(zoo)
 library(devtools)
+library(ggthemr)
 
 
 secToMin <- function(seconds) {
@@ -152,7 +153,7 @@ rm(stage_times)
 
 summary_table <- total_times %>% 
   ungroup() %>% 
-  select(-totalMinutes) %>% 
+  select(-totalMinutes, -avgTime, -avgMinutes) %>% 
   spread(typeStage, totalTime) %>% 
   select(year, name, Total, Beer, Running, raceType) %>%
   arrange(year, raceType, Total) %>% 
