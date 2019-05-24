@@ -4,11 +4,19 @@ library(shinythemes)
 library(readxl)
 library(ggthemr)
 library(scales)
+library(RColorBrewer)
+library(viridis)
 # This is a sample script taken from 
 # http://zevross.com/blog/2016/04/19/r-powered-web-applications-with-shiny-a-tutorial-and-cheat-sheet-with-40-example-apps/
 
+beer_palette <- c("#00ff00")
+running_palette <- c("#009BD2")
+total_palette <- c("#F45B69")
+# beer_palette <- c("#00ff00", "#33FF33", "#66FF66", "#99FF99", "#CCFFCC")
+# running_palette <- c("#009BD2", "#33CEFF", "#66FFFF", "#99FFFF", "#CCFFFF")
+viridis_pal <- "viridis"
 
-ggthemr("fresh", layout = "minimal")
+ ggthemr("fresh", layout = "minimal")
 # Load in the necessary data
 
 # TODO
@@ -26,8 +34,8 @@ ggthemr("fresh", layout = "minimal")
 # UI
 ui <- fluidPage(
   
-  theme = shinytheme("flatly"),
-  
+  theme = shinytheme("cerulean"),#
+  #shinythemes::themeSelector(),  
   titlePanel("Mid-May McMile Results"),
   sidebarLayout(
     sidebarPanel(
@@ -49,7 +57,7 @@ ui <- fluidPage(
                            label = "Select Year",
                            choices = unique(data$year),
                            selected = unique(data$year)),
-        helpText = "Choose Name and Race Years for individual results"
+        helpText = "Choose a name for individual results"
       )
     ), # End sidebarPanel
                   
@@ -66,9 +74,9 @@ ui <- fluidPage(
                                    plotOutput("avgBeerPlot"),
                                    h4("Average Running Times"),
                                    plotOutput("avgRunPlot"),
-                                   h4("Beer and Running Distributions by Lap"),
-                                   plotOutput("lapDistributions"),
-                                   h4("Beer and Running Boxplots by Stage"),
+                                   #h4("Beer and Running Distributions by Lap"),
+                                   #plotOutput("lapDistributions"),
+                                   h4("Beer and Running Distribution by Stage (with Avg Line)"),
                                    plotOutput("lapBoxplots")),
                           tabPanel("Individual Results",
                                    # Table 1 - Overall Results
@@ -128,12 +136,16 @@ server <- function(input, output, session) {
     ggplot(filter(total_times, year == input$RaceYear, typeStage == "Total"), 
            aes(y = totalTime, 
               x = reorder(name, -totalTime),
-              label = totalMinutes)) +
-      geom_bar(stat = "identity") +
+              label = totalMinutes,
+              fill = "year")) +
+      geom_bar(stat = "identity", aes(fill = "year")) +
       coord_flip() +
-      geom_text(aes(y = 5), position = position_dodge(0.9), hjust = "left", colour = "white") +
+      geom_text(aes(y = 5), position = position_dodge(0.9), hjust = "left") + #, colour = "white") +
       facet_wrap(~raceType, nrow = 2, scales = "free_y") +
-      labs(y = "", x = "Total Time")
+      labs(y = "", x = "Total Time") +
+      scale_fill_viridis(option = viridis_pal, discrete = TRUE, begin = 0.5, end = 0.5) +
+      theme(legend.position = "none")
+      
     
   })
   
@@ -142,11 +154,14 @@ server <- function(input, output, session) {
     ggplot(filter(total_times, year == input$RaceYear, typeStage == "Beer"), 
            aes(y = avgTime, 
                x = reorder(name, -avgTime),
-               label = avgMinutes)) +
-      geom_bar(stat = "identity") +
+               label = avgMinutes,
+               fill = "year")) +
+      geom_bar(stat = "identity", fill = beer_palette) +
       coord_flip() +
-      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "white") +
-      labs(y = "", x = "Avg Beer Time")
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "black") +
+      labs(y = "", x = "Avg Beer Time") +
+      #scale_fill_brewer(values = beer_palette) +
+      theme(legend.position = "none")
   })
   
   # Avg running time, no facetting
@@ -154,23 +169,29 @@ server <- function(input, output, session) {
     ggplot(filter(total_times, year == input$RaceYear, typeStage == "Running"), 
            aes(y = avgTime, 
                x = reorder(name, -avgTime),
-               label = avgMinutes)) +
-      geom_bar(stat = "identity") +
+               label = avgMinutes,
+               fill = "year")) +
+      geom_bar(stat = "identity", fill = running_palette) +
       coord_flip() +
-      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "white") +
-      labs(y = "", x = "Avg Lap Time")
+      geom_text(aes(y = 1), position = position_dodge(0.9), hjust = "left", colour = "black") +
+      labs(y = "", x = "Avg Lap Time") +
+      # scale_fill_viridis(option = viridis_pal, discrete = TRUE, begin = 0.95, end = 0.95) +
+      theme(legend.position = "none")
   })
     
   # Distributinos of running drinking per lap
   output$lapDistributions <- renderPlot({
     ggplot(rename(filter(data, year == input$RaceYear), # Filter the year out
                   "Lap" = "numStage"), # Rename the numStage variable to "Lap"
-           aes(x = time, group = Lap, fill = Lap, colour = Lap)) +
-      geom_density(size = 0.75, alpha = 0.3) +
+           aes(x = time, fill = typeStage, colour = typeStage, group = Lap, alpha = Lap)) +
+      geom_density(size = 0.75, alpha = 0.8) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Total Seconds",
-            y = "Density")
+            y = "Density") +
+      scale_fill_viridis() +
+      #scale_fill_viridis_d() +
+      scale_alpha_discrete(range = c(0.1,1))
   
   })
   
@@ -178,13 +199,17 @@ server <- function(input, output, session) {
   output$lapBoxplots <- renderPlot({
     ggplot(filter(data, year == input$RaceYear), # Filter the year out
            aes(x = numStage, y = time, fill = typeStage)) +
-      geom_boxplot(aes(fill = typeStage), alpha = 0.4) +
+      geom_jitter(size = 3.5, width = 0.15, alpha = 0.5, pch = 21, colour = "black") +
+      geom_crossbar(data = filter(annual_averages_by_stage_by_type, year == input$RaceYear),
+                    aes(ymin = time, ymax = time, colour = typeStage), 
+                    size = 0.5, width = 0.5) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
-      geom_jitter(size = 1.25, width = 0.15, colour = "black") +
       labs(x = "Lap Number",
            y = "Seconds") +
       theme(legend.position="none") +
-      scale_fill_discrete("")
+      scale_fill_manual(values = c(beer_palette, running_palette)) +
+      scale_colour_manual(values = c(beer_palette, running_palette))
+    
     
   })
   
@@ -225,7 +250,8 @@ server <- function(input, output, session) {
                  size = 3.75) +
       labs(x = "Stage",
            y = "Cumulative Time (Seconds)") +
-      guides(colour = guide_legend(reverse=TRUE))
+      guides(colour = guide_legend(reverse=TRUE)) +
+      scale_colour_viridis(option = viridis_pal, discrete = TRUE)
     
   }) # end Total race plot
   
@@ -234,12 +260,16 @@ server <- function(input, output, session) {
   output$beerPlotIndividual <- renderPlot({
     ggplot(filter(data, name == input$Name, year %in% input$MilerYear, typeStage == "Beer"), 
            # Need to reorder the numStage due to the coor_flip later
-           aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
-      geom_bar(stat = "identity", position = position_dodge()) +
-      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left", colour="white") +
+           aes(x = reorder(numStage, desc(numStage)), y = time, label = stageMinutes, alpha = year)) +
+      geom_bar(stat = "identity", position = position_dodge(), fill = beer_palette) +
+      geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
       coord_flip() +
-      labs(x = "Beer Number", y = "Seconds") +
-      guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
+      labs(x = "Beer Number", y = "Seconds") 
+      #guides(fill = guide_legend(reverse=TRUE)) + # reverse these too for the coord_flip
+      #scale_alpha("Year", range = c(0.2, 1), discrete = TRUE)
+      #scale_fill_viridis(option = viridis_pal, 
+      #                   discrete = TRUE, 
+      #                   begin = 0.05, end = 0.4,alpha = 0.8)
   }) # end BeerPlot
   
   
@@ -252,7 +282,10 @@ server <- function(input, output, session) {
       geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left", colour="white") +
       coord_flip() +
       labs(x = "Lap Number", y = "Seconds") +
-      guides(fill = guide_legend(reverse=TRUE)) # reverse these too for the coord_flip
+      guides(fill = guide_legend(reverse=TRUE)) +# reverse these too for the coord_flip
+      scale_fill_viridis(option = viridis_pal, 
+                         discrete = TRUE, 
+                         begin = 0.55, end = 0.95,alpha = 0.8)
   }) # end Running Plot
   
   
@@ -268,7 +301,7 @@ server <- function(input, output, session) {
                                typeStage != "Total",
                                year %in% input$MilerYear), 
                  aes(xintercept = avgTime, colour = year),
-                 size = 1.5) +
+                 size = 1.25) +
       facet_wrap(~typeStage, ncol = 1, scales = "free") +
       scale_y_continuous(labels = scales::percent) +
       labs(x = "Average Seconds",
@@ -287,7 +320,7 @@ server <- function(input, output, session) {
       geom_jitter(size = 1.25, width = 0.15, colour = "black") +
       geom_jitter(data = filter(data, name == input$Name, year %in% input$MilerYear), 
                   aes(colour = year),
-                  size = 4.5, width = 0.15) +
+                  size = 3.5, width = 0.15) +
       labs(x = "Lap Number",
            y = "Time (seconds)") +
       guides(colour = guide_legend(reverse=TRUE)) +

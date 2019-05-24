@@ -3,7 +3,7 @@
 library(gganimate)
 library(scales)
 
-year_list <- c("2017", "2016")
+year_list <- c("2017", "2016", "2015")
 
 temp_data <- filter(data, name == "Petras Vaiciunas", year %in% year_list)
 
@@ -18,7 +18,26 @@ ggplot(filter(data,
   coord_flip() +  
   labs(x = "Stage Number",
        y = "Seconds") +
-  guides(fill = guide_legend(reverse=TRUE))
+  guides(fill = guide_legend(reverse=TRUE)) +
+  # scale_fill_manual(values = beer_palette)
+  # scale_fill_viridis_d(begin = 0, end = 0.4, alpha = 0.9)
+  scale_fill_viridis_d(begin = 0.05, end = 0.4,alpha = 0.8)
+
+
+# Running Graph
+ggplot(filter(data, 
+              name == "Petras Vaiciunas",
+              year %in% year_list,
+              typeStage == "Running"),
+       aes(x = reorder(numStage, desc(numStage)), y = time, fill = year, label = stageMinutes)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(y = 0.5), position = position_dodge(0.9), hjust = "left") +
+  coord_flip() +  
+  labs(x = "Stage Number",
+       y = "Seconds") +
+  guides(fill = guide_legend(reverse=TRUE)) +
+  # scale_fill_manual(values = beer_palette)
+  scale_fill_viridis_d(begin = 0.6, end = 0.95)
 
 
 
@@ -145,7 +164,58 @@ ggplot(filter(total_times,
                            year %in% year_list), 
              aes(xintercept = avgTime, colour = year)) +
   facet_wrap(~typeStage, ncol = 1, scales = "free") +
-  scale_y_continuous(labels = scales::percent_format(accuracey = 0.1)) +
+#  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
   labs(x = "Average Seconds",
        y = "Density") +
   scale_colour_discrete("Avg Time")
+
+
+sample_name <- "Petras Vaiciunas"
+year_list <- c(2015, 2016, 2017, 2018, 2019)
+
+# Plots of individual lap and beer times
+ggplot(filter(data, name == sample_name, year %in% year_list),
+       aes(x = numStage, y = time, label = stageMinutes, fill = year)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(~typeStage, nrow = 2) +
+  geom_text(aes(y = 3), position = position_dodge(0.9), hjust = "left", angle = 90) +
+  labs(x = "Stage Number",
+       y = "Time (Seconds)",
+       fill = "Year")
+  
+
+# Boxplots ----------------------------------------------------------------
+
+year_list <- c(2016, 2017, 2019)
+viridis_pal <- "viridis"
+
+# Individual
+ggplot(filter(data, year %in% year_list), 
+         aes(x = numStage, y = time)) +
+    geom_boxplot(aes(fill = typeStage), alpha = 0.4) +
+    facet_wrap(~typeStage, ncol = 1, scales = "free_y") +
+    geom_jitter(size = 1.25, width = 0.15, colour = "black") +
+    geom_jitter(data = filter(data, name == "Petras Vaiciunas", year %in% year_list), 
+                aes(colour = year),
+                size = 3.5, width = 0.15) +
+    labs(x = "Lap Number",
+         y = "Time (seconds)") +
+    guides(colour = guide_legend(reverse=TRUE)) +
+    scale_fill_discrete("")
+  
+# Overall
+  ggplot(filter(data, year %in% year_list), # Filter the year out
+           aes(x = numStage, y = time, fill = typeStage)) +
+      #geom_boxplot(aes(fill = typeStage), alpha = 0.8) +
+      geom_jitter(size = 2, width = 0.15, alpha = 0.5, pch = 21, colour = "black") +
+      # stat_summary(fun.y = "mean", colour = "red", geom = "point") +
+      # geom_hline(yintercept = mean(time)) +
+      geom_crossbar(data = filter(annual_averages_by_stage_by_type, year == 2019),
+                    aes(ymin = time, ymax = time, colour = typeStage), size = 0.6) +
+      facet_wrap(~typeStage, ncol = 1, scales = "free") +
+      labs(x = "Lap Number",
+           y = "Seconds") +
+      theme(legend.position="none") +
+      scale_fill_viridis(option = viridis_pal, discrete = TRUE, begin = 0,end = 1) +
+      scale_colour_viridis(option = viridis_pal, discrete = TRUE, begin = 0,end = 1)
+  

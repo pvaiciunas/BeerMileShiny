@@ -167,7 +167,11 @@ summary_table <- total_times %>%
          'Race Type' = raceType,
          "Year" = year)
   
-  
+
+# Create median
+annual_averages_by_stage_by_type <- data %>% 
+  group_by(year, typeStage, numStage) %>% 
+  summarize(time = mean(time))
 
 
 
